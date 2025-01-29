@@ -15,6 +15,7 @@ package kyverno
 
 import (
 	"fmt"
+	"sync"
 
 	ctrl "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -31,15 +32,32 @@ type KyvernoAnalyzer struct {
 	clusterReportAnalysis bool
 }
 
+var schemeInit sync.Once
+
+// initScheme initializes the scheme for the kyverno operator
+func initScheme(client ctrl.Client) error {
+	var initErr error
+	schemeInit.Do(func() {
+		initErr = v1alpha2.AddToScheme(client.Scheme())
+	})
+	return initErr
+}
+
 func (KyvernoAnalyzer) analyzePolicyReports(a common.Analyzer) ([]common.Result, error) {
 	result := &v1alpha2.PolicyReportList{}
 	client := a.Client.CtrlClient
 
-	err := v1alpha2.AddToScheme(client.Scheme())
+	err := initScheme(client)
 	if err != nil {
 		return nil, err
 	}
-	if err := client.List(a.Context, result, &ctrl.ListOptions{}); err != nil {
+
+	listOptions := &ctrl.ListOptions{}
+	if a.Namespace != "" {
+		listOptions.Namespace = a.Namespace
+	}
+
+	if err := client.List(a.Context, result, listOptions); err != nil {
 		return nil, err
 	}
 
@@ -89,7 +107,7 @@ func (t KyvernoAnalyzer) analyzeClusterPolicyReports(a common.Analyzer) ([]commo
 	result := &v1alpha2.ClusterPolicyReportList{}
 	client := a.Client.CtrlClient
 
-	err := v1alpha2.AddToScheme(client.Scheme())
+	err := initScheme(client)
 	if err != nil {
 		return nil, err
 	}

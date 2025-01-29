@@ -16,6 +16,7 @@ package trivy
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	ctrl "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -29,16 +30,33 @@ type TrivyAnalyzer struct {
 	configAuditReportAnalysis   bool
 }
 
+var schemeInit sync.Once
+
+// initScheme initializes the scheme for the trivy operator
+func initScheme(client ctrl.Client) error {
+	var initErr error
+	schemeInit.Do(func() {
+		initErr = v1alpha1.AddToScheme(client.Scheme())
+	})
+	return initErr
+}
+
 func (TrivyAnalyzer) analyzeVulnerabilityReports(a common.Analyzer) ([]common.Result, error) {
 	// Get all trivy VulnerabilityReports
 	result := &v1alpha1.VulnerabilityReportList{}
 
 	client := a.Client.CtrlClient
-	err := v1alpha1.AddToScheme(client.Scheme())
+	err := initScheme(client)
 	if err != nil {
 		return nil, err
 	}
-	if err := client.List(a.Context, result, &ctrl.ListOptions{}); err != nil {
+
+	listOptions := &ctrl.ListOptions{}
+	if a.Namespace != "" {
+		listOptions.Namespace = a.Namespace
+	}
+
+	if err := client.List(a.Context, result, listOptions); err != nil {
 		return nil, err
 	}
 
@@ -94,11 +112,17 @@ func (t TrivyAnalyzer) analyzeConfigAuditReports(a common.Analyzer) ([]common.Re
 	result := &v1alpha1.ConfigAuditReportList{}
 
 	client := a.Client.CtrlClient
-	err := v1alpha1.AddToScheme(client.Scheme())
+	err := initScheme(client)
 	if err != nil {
 		return nil, err
 	}
-	if err := client.List(a.Context, result, &ctrl.ListOptions{}); err != nil {
+
+	listOptions := &ctrl.ListOptions{}
+	if a.Namespace != "" {
+		listOptions.Namespace = a.Namespace
+	}
+
+	if err := client.List(a.Context, result, listOptions); err != nil {
 		return nil, err
 	}
 
