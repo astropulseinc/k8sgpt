@@ -30,12 +30,17 @@ type TrivyAnalyzer struct {
 	configAuditReportAnalysis   bool
 }
 
-var schemeInit sync.Once
+var (
+	schemeInit  sync.Once
+	schemeMutex sync.Mutex
+)
 
 // initScheme initializes the scheme for the trivy operator
 func initScheme(client ctrl.Client) error {
 	var initErr error
 	schemeInit.Do(func() {
+		schemeMutex.Lock()
+		defer schemeMutex.Unlock()
 		initErr = v1alpha1.AddToScheme(client.Scheme())
 	})
 	return initErr

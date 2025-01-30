@@ -32,12 +32,17 @@ type KyvernoAnalyzer struct {
 	clusterReportAnalysis bool
 }
 
-var schemeInit sync.Once
+var (
+	schemeInit  sync.Once
+	schemeMutex sync.Mutex
+)
 
 // initScheme initializes the scheme for the kyverno operator
 func initScheme(client ctrl.Client) error {
 	var initErr error
 	schemeInit.Do(func() {
+		schemeMutex.Lock()
+		defer schemeMutex.Unlock()
 		initErr = v1alpha2.AddToScheme(client.Scheme())
 	})
 	return initErr
