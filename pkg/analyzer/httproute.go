@@ -38,7 +38,7 @@ func (HTTPRouteAnalyzer) Analyze(a common.Analyzer) ([]common.Result, error) {
 	gtw := &gtwapi.Gateway{}
 	service := &corev1.Service{}
 	client := a.Client.CtrlClient
-	err := gtwapi.AddToScheme(client.Scheme())
+	err := gtwapi.Install(client.Scheme())
 	if err != nil {
 		return nil, err
 	}
